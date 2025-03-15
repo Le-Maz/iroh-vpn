@@ -25,7 +25,8 @@ impl AppService {
     pub fn run(&self) {}
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let mut injector = Injector::default();
     injector.get::<AppService>().run();
 }
