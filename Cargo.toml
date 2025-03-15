@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+injector = { git = "https://github.com/Le-Maz/injector", version = "0.1.0" }
+injector-macro = { git = "https://github.com/Le-Maz/injector", version = "0.1.0" }
