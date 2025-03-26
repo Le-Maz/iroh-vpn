@@ -815,9 +815,9 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "foldhash"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
+checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "form_urlencoded"
@@ -1463,13 +1463,13 @@ dependencies = [
 
 [[package]]
 name = "injector"
-version = "0.1.0"
-source = "git+https://github.com/Le-Maz/injector#7790fca532450edcca8340e90d62320064f913e8"
+version = "0.1.2"
+source = "git+https://github.com/Le-Maz/injector#31ce7005e9ef68d5e1898bc11755d74fdf32d1fb"
 
 [[package]]
 name = "injector-macro"
 version = "0.1.0"
-source = "git+https://github.com/Le-Maz/injector#7790fca532450edcca8340e90d62320064f913e8"
+source = "git+https://github.com/Le-Maz/injector#31ce7005e9ef68d5e1898bc11755d74fdf32d1fb"
 dependencies = [
  "injector",
  "proc-macro2",
@@ -1743,6 +1743,7 @@ dependencies = [
 name = "iroh-vpn"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "injector",
  "injector-macro",
  "iroh",
@@ -4116,9 +4117,9 @@ dependencies = [
 
 [[package]]
 name = "widestring"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7219d36b6eac893fa81e84ebe06485e7dcbb616177469b142df14f1f4deb1311"
+checksum = "dd7cf3379ca1aac9eea11fba24fd7e315d621f8dfe35c8d7d2be8b793726e07d"
 
 [[package]]
 name = "winapi"
