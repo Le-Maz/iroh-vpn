@@ -1747,6 +1747,8 @@ dependencies = [
  "injector",
  "injector-macro",
  "iroh",
+ "serde",
+ "serde_json",
  "tokio",
  "tun",
 ]

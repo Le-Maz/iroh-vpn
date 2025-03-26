@@ -5,6 +5,7 @@ use injector_macro::Injectable;
 use tun::configure;
 use tun::create_as_async;
 
+use crate::config_service::ConfigService;
 use crate::mailbox::Mailbox;
 
 #[derive(Debug)]
@@ -15,16 +16,22 @@ pub enum TunServiceMessage {
 #[derive(Injectable)]
 pub struct TunService {
     pub mailbox: Mailbox<TunServiceMessage>,
+    config_service: Injected<ConfigService>,
 }
 
 impl TunService {
     pub async fn run(self: Injected<Self>) -> anyhow::Result<()> {
         let mut config = configure();
-        config
-            .address((10, 0, 0, 9))
-            .netmask((255, 255, 255, 0))
-            .destination((10, 0, 0, 1))
-            .up();
+        if let Some(address) = (&self.config_service).config().tun.address.clone() {
+            config.address(address);
+        }
+        if let Some(netmask) = (&self.config_service).config().tun.netmask.clone() {
+            config.netmask(netmask);
+        }
+        if let Some(name) = (&self.config_service).config().tun.name.clone() {
+            config.tun_name(name);
+        }
+        config.up();
 
         let device = create_as_async(&config)?;
         let mut receiver = self.mailbox.lock_receiver().await;

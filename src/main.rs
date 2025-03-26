@@ -2,14 +2,12 @@
 
 pub mod mailbox;
 mod tun_service;
+mod config_service;
 
 use injector::{Injected, Injector};
 use injector_macro::Injectable;
 use tokio::task::JoinSet;
 use tun_service::TunService;
-
-#[derive(Injectable)]
-pub struct ConfigService {}
 
 #[derive(Injectable)]
 pub struct TuiService {}
@@ -19,7 +17,6 @@ pub struct IrohService {}
 
 #[derive(Injectable)]
 pub struct AppService {
-    config_service: Injected<ConfigService>,
     tui_service: Injected<TuiService>,
     tun_service: Injected<TunService>,
     iroh_service: Injected<IrohService>,
