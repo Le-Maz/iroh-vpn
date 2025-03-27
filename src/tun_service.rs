@@ -31,6 +31,11 @@ impl TunService {
         if let Some(name) = (&self.config_service).config().tun.name.clone() {
             config.tun_name(name);
         }
+        #[cfg(target_os = "linux")]
+        config.platform_config(|config| {
+            // requiring root privilege to acquire complete functions
+            config.ensure_root_privileges(true);
+        });
         config.up();
 
         let device = create_as_async(&config)?;
