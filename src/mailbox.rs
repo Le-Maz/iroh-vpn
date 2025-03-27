@@ -1,4 +1,4 @@
-use tokio::sync::{mpsc, Mutex, MutexGuard};
+use tokio::sync::{Mutex, MutexGuard, mpsc};
 
 #[derive(Debug)]
 pub struct Mailbox<T>

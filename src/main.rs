@@ -1,8 +1,8 @@
 #![feature(arbitrary_self_types)]
 
+mod config_service;
 pub mod mailbox;
 mod tun_service;
-mod config_service;
 
 use injector::{Injected, Injector};
 use injector_macro::Injectable;
