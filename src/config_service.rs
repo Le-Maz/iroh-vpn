@@ -1,6 +1,6 @@
 use std::sync::{Arc, OnceLock};
 
-use injector_macro::Injectable;
+use injector::Injectable;
 use serde::Deserialize;
 
 #[derive(Debug, Default, Deserialize)]
