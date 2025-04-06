@@ -1,19 +1,15 @@
 use std::sync::{Arc, OnceLock};
 
+use clap::Parser;
 use injector::Injectable;
-use serde::Deserialize;
 
-#[derive(Debug, Default, Deserialize)]
-pub struct TunConfig {
-    pub address: Option<String>,
-    pub netmask: Option<String>,
-    pub name: Option<String>,
-}
-
-#[derive(Debug, Default, Deserialize)]
+/// Peer-to-peer VPN using [Iroh](https://www.iroh.computer/)
+#[derive(Debug, Parser)]
 pub struct Config {
-    #[serde(default)]
-    pub tun: TunConfig,
+    pub tun_address: Option<String>,
+    pub tun_netmask: Option<String>,
+    pub tun_name: Option<String>,
+    pub iroh_sk_path: Option<String>,
 }
 
 #[derive(Injectable)]
@@ -28,6 +24,6 @@ impl ConfigService {
             .clone()
     }
     fn load_config() -> Config {
-        serde_json::from_str("{}").unwrap()
+        Config::parse()
     }
 }

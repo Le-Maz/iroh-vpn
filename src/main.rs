@@ -1,4 +1,5 @@
 #![feature(arbitrary_self_types)]
+#![feature(never_type)]
 
 mod config_service;
 mod iroh_service;
@@ -10,15 +11,12 @@ use std::convert::identity;
 use anyhow::anyhow;
 use injector::{Injectable, Injected, Injector};
 use iroh_service::IrohService;
-use tokio::{select, signal::ctrl_c, task::JoinSet};
+use tokio::{io::{stdin, AsyncBufReadExt, BufReader}, select, signal::ctrl_c, task::JoinSet};
+use tracing::info;
 use tun_service::TunService;
 
 #[derive(Injectable)]
-pub struct TuiService {}
-
-#[derive(Injectable)]
 pub struct AppService {
-    tui_service: Injected<TuiService>,
     tun_service: Injected<TunService>,
     iroh_service: Injected<IrohService>,
 }

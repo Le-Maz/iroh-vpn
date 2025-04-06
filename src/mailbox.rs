@@ -1,36 +1,14 @@
-use tokio::sync::{Mutex, MutexGuard, mpsc};
+use tokio::sync::broadcast;
 
 #[derive(Debug)]
-pub struct Mailbox<T>
-where
-    T: Send + Sync,
-{
-    sender: mpsc::UnboundedSender<T>,
-    receiver: Mutex<mpsc::UnboundedReceiver<T>>,
+pub struct Mailbox<T, const DEFAULT_CAPACITY: usize> {
+    pub broadcast: broadcast::Sender<T>,
 }
 
-impl<T> Default for Mailbox<T>
-where
-    T: Send + Sync,
-{
+impl<T, const DEFAULT_CAPACITY: usize> Default for Mailbox<T, DEFAULT_CAPACITY> {
     fn default() -> Self {
-        let (sender, receiver) = mpsc::unbounded_channel();
         Self {
-            sender,
-            receiver: Mutex::new(receiver),
+            broadcast: broadcast::Sender::new(DEFAULT_CAPACITY),
         }
-    }
-}
-
-impl<'mailbox, T> Mailbox<T>
-where
-    T: Send + Sync,
-{
-    pub fn get_sender(&'mailbox self) -> &'mailbox mpsc::UnboundedSender<T> {
-        &self.sender
-    }
-
-    pub async fn lock_receiver(&'mailbox self) -> MutexGuard<'mailbox, mpsc::UnboundedReceiver<T>> {
-        self.receiver.lock().await
     }
 }

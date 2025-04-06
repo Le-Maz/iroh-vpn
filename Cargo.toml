@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
+clap = { version = "4.5.35", features = ["derive"] }
 injector = { git = "https://github.com/Le-Maz/injector", version = "0.5" }
 iroh = "0.34"
 serde = "1"
