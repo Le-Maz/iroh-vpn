@@ -5,14 +5,14 @@ mod config_service;
 mod iroh_service;
 pub mod mailbox;
 mod tun_service;
+mod receiver_stream;
 
 use std::convert::identity;
 
 use anyhow::anyhow;
 use injector::{Injectable, Injected, Injector};
 use iroh_service::IrohService;
-use tokio::{io::{stdin, AsyncBufReadExt, BufReader}, select, signal::ctrl_c, task::JoinSet};
-use tracing::info;
+use tokio::{select, signal::ctrl_c, task::JoinSet};
 use tun_service::TunService;
 
 #[derive(Injectable)]

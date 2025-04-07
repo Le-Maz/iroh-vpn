@@ -1,18 +1,22 @@
+use std::future::poll_fn;
+use std::io::Write;
 use std::sync::Arc;
+use std::task::Poll;
 
 use anyhow::anyhow;
+use futures::Stream;
 use injector::WeakInjected;
 use injector::{Injectable, Injected};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::broadcast::error::RecvError;
-use tracing::{info, warn};
-use tun::{AbstractDevice, DeviceReader, DeviceWriter};
-use tun::configure;
+use tokio::io::{AsyncRead, ReadBuf};
+use tracing::{debug, info};
+use tun::AbstractDevice;
 use tun::create_as_async;
+use tun::{Device, configure};
 
 use crate::config_service::ConfigService;
 use crate::iroh_service::{IrohService, PeerMessage};
 use crate::mailbox::Mailbox;
+use crate::receiver_stream::ReceiverStream;
 
 #[derive(Injectable)]
 pub struct TunService {
@@ -42,48 +46,41 @@ impl TunService {
         });
         config.up();
 
-        let device = create_as_async(&config)?;
+        let mut device = Box::pin(create_as_async(&config)?);
 
         info!("TUN created with index {}", device.tun_index()?);
         info!("TUN IP address: {}", device.address()?);
         let mtu = device.mtu()?;
 
-        let (device_writer, device_reader) = device.split()?;
+        let mut buf_memory = vec![0u8; mtu as usize];
+        let mut buf = ReadBuf::new(&mut buf_memory);
+        let receiver = self.packet_stream.broadcast.subscribe();
+        let mut recv_stream = Box::pin(ReceiverStream::new(receiver));
+        let packet_broadcast = self
+            .iroh_service
+            .upgrade()
+            .ok_or(anyhow!("TUN service could not get iroh service"))?
+            .packet_broadcast
+            .broadcast
+            .clone();
 
-        tokio::select!{
-            result = self.clone().writer_loop(device_writer) => result,
-            result = self.reader_loop(mtu, device_reader) => result,
-        }?;
+        let () = poll_fn(|cx| {
+            if let Poll::Ready(_) = device.as_mut().poll_read(cx, &mut buf) {
+                let data: Arc<[u8]> = Arc::from(buf.filled());
+                debug!("Sending {} bytes from TUN", data.len());
+                let _ = packet_broadcast.send(PeerMessage::Packet(data));
+                buf.clear();
+                cx.waker().wake_by_ref();
+            }
+            if let Poll::Ready(Some(data)) = recv_stream.as_mut().poll_next(cx) {
+                debug!("Sending {} bytes to TUN", data.len());
+                let _ = (&mut device as &mut Device).write_all(&data);
+                cx.waker().wake_by_ref();
+            }
+            Poll::Pending
+        })
+        .await;
 
         Ok(())
-    }
-
-    async fn writer_loop(self: Injected<Self>, mut device_writer: DeviceWriter) -> anyhow::Result<()> {
-        let mut receiver = self.packet_stream.broadcast.subscribe();
-        loop {
-            match receiver.recv().await {
-                Ok(packet) => {
-                    device_writer.write_all(&packet).await?;
-                }
-                Err(RecvError::Lagged(_)) => continue,
-                Err(RecvError::Closed) => break,
-            }
-        }
-        Ok(())
-    }
-
-    async fn reader_loop(self: Injected<Self>, mtu: u16, mut device_reader: DeviceReader) -> anyhow::Result<()> {
-        let packet_broadcast = self.iroh_service.upgrade().ok_or(anyhow!("TUN service could not get iroh service"))?.packet_broadcast.broadcast.clone();
-        let mut buffer = vec![0u8; mtu as usize];
-        loop {
-            match device_reader.read(&mut buffer).await {
-                Ok(n) => {
-                    let _ = packet_broadcast.send(PeerMessage::Packet(Arc::from(&buffer[..n])));
-                }
-                Err(err) => {
-                    warn!("{}", err);
-                }
-            }
-        }
     }
 }
