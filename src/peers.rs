@@ -68,7 +68,7 @@ pub async fn run_peers(
             bail!("PeersMessage channel broken")
         };
         match message {
-            PeersMessage::Connect(node_addr) => {
+            PeersMessage::Connect(node_addr) if !peers.contains_key(&node_addr.node_id) => {
                 tokio::spawn(connect_peer(
                     peers_send.clone(),
                     endpoint.clone(),
@@ -92,6 +92,7 @@ pub async fn run_peers(
             PeersMessage::Disconnect(public_key) => {
                 peers.remove(&public_key);
             }
+            _ => {}
         }
     }
 }

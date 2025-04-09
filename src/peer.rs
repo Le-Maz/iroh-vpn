@@ -6,6 +6,7 @@ use iroh::{
     endpoint::{Connection, RecvStream, SendStream},
 };
 use tokio::{sync::mpsc, task::AbortHandle};
+use tracing::info;
 
 use crate::{ALPN, peers::PeersMessage};
 
@@ -15,6 +16,7 @@ pub async fn connect_peer(
     node_addr: NodeAddr,
 ) -> anyhow::Result<()> {
     let connection = endpoint.connect(node_addr.clone(), ALPN).await?;
+    info!("Connected to {}", connection.remote_node_id()?.fmt_short());
     let (peer_send, peer_recv) = mpsc::channel(16);
     let abort_handle =
         tokio::spawn(run_peer(connection, peer_recv, peers_send.clone())).abort_handle();
