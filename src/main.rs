@@ -1,15 +1,13 @@
 #![feature(never_type)]
 
 mod config;
+mod peer;
 mod peers;
 mod tun;
 use crate::tun::run_tun;
 
-use std::convert::identity;
-
-use anyhow::anyhow;
 use peers::run_peers;
-use tokio::{select, signal::ctrl_c, sync::mpsc, task::JoinSet};
+use tokio::{signal::ctrl_c, sync::mpsc};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -18,8 +16,10 @@ async fn main() -> anyhow::Result<()> {
     let (tun_send, tun_recv) = mpsc::channel(32);
     let (peers_send, peers_recv) = mpsc::channel(32);
 
-    tokio::spawn(run_tun(tun_recv, peers_send));
-    tokio::spawn(run_peers(peers_recv, tun_send));
+    tokio::spawn(run_tun(tun_recv, peers_send.clone()));
+    tokio::spawn(run_peers(peers_send, peers_recv, tun_send));
+
+    ctrl_c().await?;
 
     Ok(())
 }

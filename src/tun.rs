@@ -52,11 +52,11 @@ pub async fn run_tun(
     let mut read_buf = ReadBuf::new(&mut buf_memory);
     let mut recv_stream = Box::pin(ReceiverStream::new(tun_recv));
 
-    let () = poll_fn(|cx| {
+    poll_fn::<anyhow::Result<!>, _>(|cx| {
         if let Poll::Ready(_) = device.as_mut().poll_read(cx, &mut read_buf) {
             let data: Arc<[u8]> = Arc::from(read_buf.filled());
             debug!("Sending {} bytes from TUN", data.len());
-            let _ = peers_send.send(PeersMessage::Packet(data));
+            let _ = peers_send.send(PeersMessage::TunPacket(data));
             read_buf.clear();
             cx.waker().wake_by_ref();
         }
@@ -71,7 +71,5 @@ pub async fn run_tun(
         }
         Poll::Pending
     })
-    .await;
-
-    Ok(())
+    .await?;
 }
