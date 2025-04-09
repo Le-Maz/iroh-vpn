@@ -73,7 +73,7 @@ async fn send_messages(
     mut recv_stream: RecvStream,
 ) -> anyhow::Result<!> {
     loop {
-        let mut buf = [0u8; 1518];
+        let mut buf = vec![0u8; u16::MAX as usize];
         let Some(size) = recv_stream.read(&mut buf).await? else {
             bail!("Connection broken");
         };

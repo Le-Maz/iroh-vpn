@@ -46,9 +46,8 @@ pub async fn run_tun(
 
     info!("TUN created with index {}", device.tun_index()?);
     info!("TUN IP address: {}", device.address()?);
-    let mtu = device.mtu()?;
 
-    let mut buf_memory = vec![0u8; mtu as usize];
+    let mut buf_memory = [0u8; u16::MAX as usize];
     let mut read_buf = ReadBuf::new(&mut buf_memory);
     let mut recv_stream = Box::pin(ReceiverStream::new(tun_recv));
 
