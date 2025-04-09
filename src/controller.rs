@@ -10,7 +10,7 @@ pub async fn run_controller(peers_send: mpsc::Sender<PeersMessage>) -> anyhow::R
         loop {
             for node_id in iroh_peer_ids {
                 let _ = peers_send
-                    .send(PeersMessage::Connect(NodeAddr::new(node_id.clone())))
+                    .send(PeersMessage::Connect(NodeAddr::new(*node_id)))
                     .await;
             }
             sleep(Duration::from_secs(10)).await;

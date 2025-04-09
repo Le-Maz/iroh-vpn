@@ -22,7 +22,7 @@ pub enum TunMessage {
 pub async fn run_tun(
     tun_recv: mpsc::Receiver<TunMessage>,
     peers_send: mpsc::Sender<PeersMessage>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<!> {
     let mut config = configure();
     if let Some(address) = CONFIG.tun_address.clone() {
         config.address(address);
@@ -53,11 +53,13 @@ pub async fn run_tun(
     let mut recv_stream = Box::pin(ReceiverStream::new(tun_recv));
 
     poll_fn::<anyhow::Result<!>, _>(|cx| {
-        if let Poll::Ready(_) = device.as_mut().poll_read(cx, &mut read_buf) {
+        if device.as_mut().poll_read(cx, &mut read_buf).is_ready() {
             let data: Arc<[u8]> = Arc::from(read_buf.filled());
             debug!("Sending {} bytes", data.len());
-            let _ = peers_send.send(PeersMessage::TunPacket(data));
             read_buf.clear();
+            let _ = tokio::task::block_in_place(|| {
+                peers_send.blocking_send(PeersMessage::TunPacket(data))
+            });
             cx.waker().wake_by_ref();
         }
         if let Poll::Ready(Some(message)) = recv_stream.as_mut().poll_next(cx) {

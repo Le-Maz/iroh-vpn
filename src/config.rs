@@ -18,4 +18,4 @@ pub struct Args {
     pub iroh_peer_ids: Option<Vec<NodeId>>,
 }
 
-pub static CONFIG: LazyLock<Args> = LazyLock::new(|| Args::parse());
+pub static CONFIG: LazyLock<Args> = LazyLock::new(Args::parse);

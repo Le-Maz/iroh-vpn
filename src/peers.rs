@@ -27,8 +27,7 @@ pub enum PeersMessage {
 }
 
 fn generate_sk() -> SecretKey {
-    let mut rng = OsRng::default();
-    SecretKey::generate(&mut rng)
+    SecretKey::generate(&mut OsRng)
 }
 
 static SECRET_KEY: LazyLock<SecretKey> = LazyLock::new(|| {
@@ -93,11 +92,19 @@ async fn run_message_loop(
                 peers.insert(public_key, peer);
             }
             PeersMessage::TunPacket(data) => {
-                for peer in peers.values() {
-                    let _ = peer
+                let mut to_remove = Vec::with_capacity(2);
+                for (node_id, peer) in peers.iter() {
+                    if peer
                         .peer_send()
                         .send(PeerMessage::Packet(data.clone()))
-                        .await;
+                        .await
+                        .is_err()
+                    {
+                        to_remove.push(*node_id);
+                    }
+                }
+                for node_id in to_remove {
+                    peers.remove(&node_id);
                 }
             }
             PeersMessage::PeerPacket(data) => {
@@ -128,7 +135,7 @@ static WHITELIST: LazyLock<Option<HashSet<PublicKey>>> = LazyLock::new(|| {
     CONFIG
         .iroh_peer_ids
         .as_ref()
-        .map(|peer_ids| peer_ids.into_iter().cloned().collect())
+        .map(|peer_ids| peer_ids.iter().cloned().collect())
 });
 
 async fn handle_incoming(
@@ -144,13 +151,9 @@ async fn handle_incoming(
     {
         info!("Connected to {}", connection.remote_node_id()?.fmt_short());
         let (peer_send, peer_recv) = mpsc::channel(16);
-        let abort_handle = tokio::spawn(run_peer(
-            peer_recv,
-            peers_send.clone(),
-            node_id.clone(),
-            connection,
-        ))
-        .abort_handle();
+        let abort_handle =
+            tokio::spawn(run_peer(peer_recv, peers_send.clone(), node_id, connection))
+                .abort_handle();
 
         let peer = Peer::new(peer_send, abort_handle);
 
@@ -172,7 +175,7 @@ async fn connect_peer(
     let abort_handle = tokio::spawn(run_peer(
         peer_recv,
         peers_send.clone(),
-        node_addr.node_id.clone(),
+        node_addr.node_id,
         connection,
     ))
     .abort_handle();

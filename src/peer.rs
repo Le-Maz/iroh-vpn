@@ -48,7 +48,7 @@ pub async fn run_peer(
     tokio::select! {
         result = async {
             let send_stream = connection.open_uni().await?;
-            receive_messages(peer_recv, send_stream, node_id.clone()).await?;
+            receive_messages(peer_recv, send_stream, node_id).await?;
         } => result,
         result = async {
             let recv_stream = connection.accept_uni().await?;
