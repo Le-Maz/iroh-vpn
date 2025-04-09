@@ -1,35 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::bail;
-use iroh::{
-    Endpoint, NodeAddr,
-    endpoint::{Connection, RecvStream, SendStream},
-};
+use iroh::endpoint::{Connection, RecvStream, SendStream};
 use tokio::{sync::mpsc, task::AbortHandle};
-use tracing::info;
 
-use crate::{ALPN, peers::PeersMessage};
-
-pub async fn connect_peer(
-    peers_send: mpsc::Sender<PeersMessage>,
-    endpoint: Endpoint,
-    node_addr: NodeAddr,
-) -> anyhow::Result<()> {
-    let connection = endpoint.connect(node_addr.clone(), ALPN).await?;
-    info!("Connected to {}", connection.remote_node_id()?.fmt_short());
-    let (peer_send, peer_recv) = mpsc::channel(16);
-    let abort_handle =
-        tokio::spawn(run_peer(connection, peer_recv, peers_send.clone())).abort_handle();
-
-    let peer_meta = Peer {
-        peer_send,
-        abort_handle,
-    };
-    peers_send
-        .send(PeersMessage::AddPeer(node_addr.node_id, peer_meta))
-        .await?;
-    Ok(())
-}
+use crate::peers::PeersMessage;
 
 #[derive(Debug)]
 pub struct Peer {
@@ -38,6 +13,13 @@ pub struct Peer {
 }
 
 impl Peer {
+    pub fn new(peer_send: mpsc::Sender<PeerMessage>, abort_handle: AbortHandle) -> Self {
+        Self {
+            peer_send,
+            abort_handle,
+        }
+    }
+
     pub fn peer_send(&self) -> &mpsc::Sender<PeerMessage> {
         &self.peer_send
     }
@@ -53,7 +35,7 @@ pub enum PeerMessage {
     Packet(Arc<[u8]>),
 }
 
-async fn run_peer(
+pub async fn run_peer(
     connection: Connection,
     peer_recv: mpsc::Receiver<PeerMessage>,
     peers_send: mpsc::Sender<PeersMessage>,
