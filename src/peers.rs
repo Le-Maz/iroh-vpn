@@ -88,8 +88,11 @@ async fn run_message_loop(
                     node_addr,
                 ));
             }
-            PeersMessage::AddPeer(public_key, peer) => {
-                peers.insert(public_key, peer);
+            PeersMessage::AddPeer(node_id, peer) => {
+                if peers.insert(node_id, peer).is_some() {
+                    info!("Disconnected from {}", node_id.fmt_short());
+                }
+                info!("Connected to {}", node_id.fmt_short());
             }
             PeersMessage::TunPacket(data) => {
                 let mut to_remove = Vec::with_capacity(2);
@@ -104,14 +107,16 @@ async fn run_message_loop(
                     }
                 }
                 for node_id in to_remove {
+                    info!("Disconnected from {}", node_id.fmt_short());
                     peers.remove(&node_id);
                 }
             }
             PeersMessage::PeerPacket(data) => {
                 let _ = tun_send.send(TunMessage::Packet(data)).await;
             }
-            PeersMessage::Disconnect(public_key) => {
-                peers.remove(&public_key);
+            PeersMessage::Disconnect(node_id) => {
+                info!("Disconnected from {}", node_id.fmt_short());
+                peers.remove(&node_id);
             }
             _ => {}
         }
@@ -149,11 +154,9 @@ async fn handle_incoming(
         .map(|peer_ids| peer_ids.contains(&node_id))
         .unwrap_or(true)
     {
-        info!("Connected to {}", connection.remote_node_id()?.fmt_short());
         let (peer_send, peer_recv) = mpsc::channel(16);
         let abort_handle =
-            tokio::spawn(run_peer(peer_recv, peers_send.clone(), node_id, connection))
-                .abort_handle();
+            tokio::spawn(run_peer(peer_recv, peers_send.clone(), connection)).abort_handle();
 
         let peer = Peer::new(peer_send, abort_handle);
 
@@ -170,15 +173,9 @@ async fn connect_peer(
     node_addr: NodeAddr,
 ) -> anyhow::Result<()> {
     let connection = endpoint.connect(node_addr.clone(), ALPN).await?;
-    info!("Connected to {}", connection.remote_node_id()?.fmt_short());
     let (peer_send, peer_recv) = mpsc::channel(16);
-    let abort_handle = tokio::spawn(run_peer(
-        peer_recv,
-        peers_send.clone(),
-        node_addr.node_id,
-        connection,
-    ))
-    .abort_handle();
+    let abort_handle =
+        tokio::spawn(run_peer(peer_recv, peers_send.clone(), connection)).abort_handle();
 
     let peer = Peer::new(peer_send, abort_handle);
 
