@@ -80,7 +80,7 @@ async fn send_messages(
     let mut buf_reader = BufReader::new(recv_stream);
     loop {
         let size = buf_reader.read_u32().await?;
-        let mut buf = Vec::with_capacity(size as usize);
+        let mut buf = vec![0u8; size as usize];
         buf_reader.read_exact(&mut buf).await?;
         peers_send
             .send(PeersMessage::PeerPacket(Arc::from(buf.as_slice())))
