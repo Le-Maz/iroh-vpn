@@ -144,8 +144,13 @@ async fn handle_incoming(
     {
         info!("Connected to {}", connection.remote_node_id()?.fmt_short());
         let (peer_send, peer_recv) = mpsc::channel(16);
-        let abort_handle =
-            tokio::spawn(run_peer(connection, peer_recv, peers_send.clone())).abort_handle();
+        let abort_handle = tokio::spawn(run_peer(
+            peer_recv,
+            peers_send.clone(),
+            node_id.clone(),
+            connection,
+        ))
+        .abort_handle();
 
         let peer = Peer::new(peer_send, abort_handle);
 
@@ -164,8 +169,13 @@ async fn connect_peer(
     let connection = endpoint.connect(node_addr.clone(), ALPN).await?;
     info!("Connected to {}", connection.remote_node_id()?.fmt_short());
     let (peer_send, peer_recv) = mpsc::channel(16);
-    let abort_handle =
-        tokio::spawn(run_peer(connection, peer_recv, peers_send.clone())).abort_handle();
+    let abort_handle = tokio::spawn(run_peer(
+        peer_recv,
+        peers_send.clone(),
+        node_addr.node_id.clone(),
+        connection,
+    ))
+    .abort_handle();
 
     let peer = Peer::new(peer_send, abort_handle);
 
