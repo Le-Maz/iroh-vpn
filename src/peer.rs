@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::bail;
 use iroh::endpoint::{Connection, RecvStream, SendStream};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt, BufReader},
     sync::mpsc,
     task::AbortHandle,
 };
@@ -75,12 +75,13 @@ async fn receive_messages(
 
 async fn send_messages(
     peers_send: mpsc::Sender<PeersMessage>,
-    mut recv_stream: RecvStream,
+    recv_stream: RecvStream,
 ) -> anyhow::Result<!> {
+    let mut buf_reader = BufReader::new(recv_stream);
     loop {
-        let size = recv_stream.read_u32().await?;
+        let size = buf_reader.read_u32().await?;
         let mut buf = Vec::with_capacity(size as usize);
-        recv_stream.read_exact(&mut buf).await?;
+        buf_reader.read_exact(&mut buf).await?;
         peers_send
             .send(PeersMessage::PeerPacket(Arc::from(buf.as_slice())))
             .await?;
