@@ -57,9 +57,7 @@ pub async fn run_tun(
             let data: Arc<[u8]> = Arc::from(read_buf.filled());
             debug!("Sending {} bytes", data.len());
             read_buf.clear();
-            let _ = tokio::task::block_in_place(|| {
-                peers_send.blocking_send(PeersMessage::TunPacket(data))
-            });
+            let _ = peers_send.try_send(PeersMessage::TunPacket(data));
             cx.waker().wake_by_ref();
         }
         if let Poll::Ready(Some(message)) = recv_stream.as_mut().poll_next(cx) {
