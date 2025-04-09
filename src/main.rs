@@ -7,6 +7,7 @@ mod peers;
 mod tun;
 
 use tokio::{signal::ctrl_c, sync::mpsc};
+use tracing_subscriber::EnvFilter;
 
 use crate::{controller::run_controller, peers::run_peers, tun::run_tun};
 
@@ -14,7 +15,10 @@ const ALPN: &[u8] = b"iroh-vpn";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt().init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_env("LOG_LEVEL"))
+        .with_target(false)
+        .init();
 
     let (tun_send, tun_recv) = mpsc::channel(32);
     let (peers_send, peers_recv) = mpsc::channel(32);
