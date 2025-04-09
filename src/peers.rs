@@ -5,16 +5,15 @@ use iroh::{Endpoint, NodeAddr, NodeId};
 use tokio::sync::mpsc;
 
 use crate::{
-    peer::{PeerMessage, run_peer},
+    ALPN,
+    peer::{Peer, PeerMessage, connect_peer},
     tun::TunMessage,
 };
-
-const ALPN: &[u8] = b"iroh-vpn";
 
 #[derive(Debug)]
 pub enum PeersMessage {
     Connect(NodeAddr),
-    AddPeer(NodeId, mpsc::Sender<PeerMessage>),
+    AddPeer(NodeId, Peer),
     TunPacket(Arc<[u8]>),
     PeerPacket(Arc<[u8]>),
     Disconnect(NodeId),
@@ -30,7 +29,7 @@ pub async fn run_peers(
         .discovery_n0()
         .bind()
         .await?;
-    let mut peers = HashMap::<NodeId, mpsc::Sender<PeerMessage>>::new();
+    let mut peers = HashMap::<NodeId, Peer>::new();
 
     loop {
         let Some(message) = peers_recv.recv().await else {
@@ -44,36 +43,23 @@ pub async fn run_peers(
                     node_addr,
                 ));
             }
-            PeersMessage::AddPeer(public_key, peer_send) => {
-                if let Some(previous) = peers.insert(public_key, peer_send) {
-                    let _ = previous.send(PeerMessage::Disconnect).await;
-                }
+            PeersMessage::AddPeer(public_key, peer) => {
+                peers.insert(public_key, peer);
             }
             PeersMessage::TunPacket(data) => {
                 for peer in peers.values() {
-                    let _ = peer.send(PeerMessage::Packet(data.clone())).await;
+                    let _ = peer
+                        .peer_send()
+                        .send(PeerMessage::Packet(data.clone()))
+                        .await;
                 }
             }
             PeersMessage::PeerPacket(data) => {
                 let _ = tun_send.send(TunMessage::Packet(data)).await;
             }
             PeersMessage::Disconnect(public_key) => {
-                peers.get(&public_key);
+                peers.remove(&public_key);
             }
         }
     }
-}
-
-async fn connect_peer(
-    peers_send: mpsc::Sender<PeersMessage>,
-    endpoint: Endpoint,
-    node_addr: NodeAddr,
-) -> anyhow::Result<()> {
-    let connection = endpoint.connect(node_addr.clone(), ALPN).await?;
-    let (peer_send, peer_recv) = mpsc::channel(16);
-    peers_send
-        .send(PeersMessage::AddPeer(node_addr.node_id, peer_send))
-        .await?;
-    tokio::spawn(run_peer(connection, peer_recv, peers_send));
-    Ok(())
 }
