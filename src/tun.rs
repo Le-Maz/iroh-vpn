@@ -2,6 +2,7 @@ use std::future::poll_fn;
 use std::io::Write;
 use std::sync::Arc;
 use std::task::Poll;
+use std::u16;
 
 use futures::Stream;
 use tokio::io::{AsyncRead, ReadBuf};
@@ -35,6 +36,7 @@ pub async fn run_tun(
     } else {
         config.tun_name("iroh-vpn");
     }
+    config.mtu(u16::MAX);
     #[cfg(target_os = "linux")]
     config.platform_config(|config| {
         // requiring root privilege to acquire complete functions
