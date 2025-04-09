@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use iroh::endpoint::{Connection, RecvStream, SendStream};
-use tokio::{sync::mpsc, task::AbortHandle};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    sync::mpsc,
+    task::AbortHandle,
+};
 
 use crate::peers::PeersMessage;
 
@@ -62,6 +66,7 @@ async fn receive_messages(
         };
         match message {
             PeerMessage::Packet(data) => {
+                send_stream.write_u32(data.len() as u32).await?;
                 send_stream.write_all(&data).await?;
             }
         }
@@ -73,12 +78,11 @@ async fn send_messages(
     mut recv_stream: RecvStream,
 ) -> anyhow::Result<!> {
     loop {
-        let mut buf = vec![0u8; u16::MAX as usize];
-        let Some(size) = recv_stream.read(&mut buf).await? else {
-            bail!("Connection broken");
-        };
+        let size = recv_stream.read_u32().await?;
+        let mut buf = Vec::with_capacity(size as usize);
+        recv_stream.read_exact(&mut buf).await?;
         peers_send
-            .send(PeersMessage::PeerPacket(Arc::from(&buf[..size])))
+            .send(PeersMessage::PeerPacket(Arc::from(buf.as_slice())))
             .await?;
     }
 }
