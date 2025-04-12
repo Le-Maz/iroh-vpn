@@ -2,7 +2,6 @@ use std::future::poll_fn;
 use std::io::Write;
 use std::sync::Arc;
 use std::task::Poll;
-use std::u16;
 
 use futures::Stream;
 use tokio::io::{AsyncRead, ReadBuf};
@@ -48,7 +47,7 @@ pub async fn run_tun(
     info!("TUN created with index {}", device.tun_index()?);
     info!("TUN IP address: {}", device.address()?);
 
-    let mut buf_memory = [0u8; u16::MAX as usize];
+    let mut buf_memory = [0u8; <u16>::MAX as usize];
     let mut read_buf = ReadBuf::new(&mut buf_memory);
     let mut recv_stream = Box::pin(ReceiverStream::new(tun_recv));
 
