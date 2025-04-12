@@ -1,18 +1,13 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::{Arc, LazyLock},
-    time::Duration,
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use anyhow::anyhow;
-use iroh::{Endpoint, NodeAddr, NodeId, PublicKey, SecretKey, endpoint::Incoming};
-use rand::rngs::OsRng;
+use anyhow::{anyhow, bail};
+use iroh::{Endpoint, NodeAddr, NodeId, endpoint::Incoming};
 use tokio::sync::mpsc;
 use tracing::info;
 
 use crate::{
     ALPN,
-    config::CONFIG,
+    config::{WHITELIST, get_config},
     peer::{Peer, PeerMessage, run_peer},
     tun::TunMessage,
 };
@@ -26,28 +21,6 @@ pub enum PeersMessage {
     Disconnect(NodeId),
 }
 
-fn generate_sk() -> SecretKey {
-    SecretKey::generate(&mut OsRng)
-}
-
-static SECRET_KEY: LazyLock<SecretKey> = LazyLock::new(|| {
-    CONFIG
-        .iroh_sk_path
-        .clone()
-        .map(|sk_path| match std::fs::exists(&sk_path).unwrap() {
-            true => {
-                let sk_string = std::fs::read_to_string(sk_path).unwrap();
-                sk_string.parse().unwrap()
-            }
-            false => {
-                let sk = generate_sk();
-                std::fs::write(sk_path, sk.to_string()).unwrap();
-                sk
-            }
-        })
-        .unwrap_or_else(generate_sk)
-});
-
 pub async fn run_peers(
     peers_send: mpsc::Sender<PeersMessage>,
     peers_recv: mpsc::Receiver<PeersMessage>,
@@ -56,7 +29,7 @@ pub async fn run_peers(
     let endpoint = Endpoint::builder()
         .alpns(vec![ALPN.to_vec()])
         .discovery_n0()
-        .secret_key(SECRET_KEY.clone())
+        .secret_key(get_config().iroh.sk.clone())
         .bind()
         .await?;
 
@@ -136,34 +109,24 @@ async fn run_incoming_loop(
     }
 }
 
-static WHITELIST: LazyLock<Option<HashSet<PublicKey>>> = LazyLock::new(|| {
-    CONFIG
-        .iroh_peer_ids
-        .as_ref()
-        .map(|peer_ids| peer_ids.iter().cloned().collect())
-});
-
 async fn handle_incoming(
     peers_send: mpsc::Sender<PeersMessage>,
     incoming: Incoming,
 ) -> anyhow::Result<()> {
     let connection = incoming.accept()?.await?;
     let node_id = connection.remote_node_id()?;
-    if WHITELIST
-        .as_ref()
-        .map(|peer_ids| peer_ids.contains(&node_id))
-        .unwrap_or(true)
-    {
-        let (peer_send, peer_recv) = mpsc::channel(16);
-        let abort_handle =
-            tokio::spawn(run_peer(peer_recv, peers_send.clone(), connection)).abort_handle();
-
-        let peer = Peer::new(peer_send, abort_handle);
-
-        peers_send
-            .send(PeersMessage::AddPeer(node_id, peer))
-            .await?;
+    if !WHITELIST.contains(&node_id) {
+        bail!("Peer outside of whitelist tried to connect");
     }
+    let (peer_send, peer_recv) = mpsc::channel(16);
+    let abort_handle =
+        tokio::spawn(run_peer(peer_recv, peers_send.clone(), connection)).abort_handle();
+
+    let peer = Peer::new(peer_send, abort_handle);
+
+    peers_send
+        .send(PeersMessage::AddPeer(node_id, peer))
+        .await?;
     Ok(())
 }
 

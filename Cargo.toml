@@ -6,11 +6,13 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 clap = { version = "4.5.35", features = ["derive"] }
+dirs = "6.0.0"
 futures = "0.3.31"
 iroh = "0.34.1"
 rand = "0.8"
 serde = "1"
 serde_json = "1"
+serde_str = "0.1.0"
 tokio = { version = "1.44.1", features = ["rt-multi-thread", "sync", "time"] }
 tokio-stream = "0.1.17"
 tracing = "0.1.41"

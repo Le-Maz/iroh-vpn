@@ -1,7 +1,7 @@
 use std::future::poll_fn;
 use std::io::Write;
 use std::pin::Pin;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures::{Stream, pin_mut};
@@ -9,9 +9,9 @@ use tokio::io::{AsyncRead, ReadBuf};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, info};
-use tun::{AsyncDevice, Configuration, create_as_async};
+use tun::{AsyncDevice, create_as_async};
 
-use crate::config::CONFIG;
+use crate::config::TUN_CONFIG;
 use crate::peers::PeersMessage;
 
 pub enum TunMessage {
@@ -72,25 +72,3 @@ fn poll_actor_message(
         }
     }
 }
-
-static TUN_CONFIG: LazyLock<Configuration> = LazyLock::new(|| {
-    let mut config = Configuration::default();
-    if let Some(address) = CONFIG.tun_address.clone() {
-        config.address(address);
-    }
-    if let Some(netmask) = CONFIG.tun_netmask.clone() {
-        config.netmask(netmask);
-    }
-    if let Some(name) = CONFIG.tun_name.clone() {
-        config.tun_name(name);
-    } else {
-        config.tun_name("iroh-vpn");
-    }
-    #[cfg(target_os = "linux")]
-    config.platform_config(|config| {
-        // requiring root privilege to acquire complete functions
-        config.ensure_root_privileges(true);
-    });
-    config.up();
-    config
-});
