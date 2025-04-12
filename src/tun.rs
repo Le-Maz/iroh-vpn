@@ -15,7 +15,7 @@ use crate::config::CONFIG;
 use crate::peers::PeersMessage;
 
 pub enum TunMessage {
-    Packet(Arc<[u8]>),
+    PeerPacket(Vec<u8>),
 }
 
 pub async fn run_tun(
@@ -34,8 +34,9 @@ pub async fn run_tun(
 
     poll_fn::<anyhow::Result<!>, _>(|cx| {
         poll_device_read(&peers_send, &mut device, &mut read_buf, cx);
-        let deferred_write = poll_actor_message(&mut recv_stream, cx);
-        let _ = device.as_mut().write_all(&deferred_write);
+        if let Some(packet) = poll_actor_message(&mut recv_stream, cx) {
+            let _ = device.as_mut().write_all(&packet);
+        }
         Poll::Pending
     })
     .await?;
@@ -59,18 +60,17 @@ fn poll_device_read(
 fn poll_actor_message(
     recv_stream: &mut Pin<&mut ReceiverStream<TunMessage>>,
     cx: &mut Context<'_>,
-) -> Vec<u8> {
-    let mut deferred_write = Vec::new();
-    if let Poll::Ready(Some(message)) = recv_stream.as_mut().poll_next(cx) {
-        match message {
-            TunMessage::Packet(data) => {
-                debug!("Received {} bytes", data.len());
-                let _ = deferred_write.write_all(&data);
-            }
+) -> Option<Vec<u8>> {
+    let Poll::Ready(Some(message)) = recv_stream.as_mut().poll_next(cx) else {
+        return None;
+    };
+    cx.waker().wake_by_ref();
+    match message {
+        TunMessage::PeerPacket(data) => {
+            debug!("Received {} bytes", data.len());
+            Some(data)
         }
-        cx.waker().wake_by_ref();
     }
-    deferred_write
 }
 
 static TUN_CONFIG: LazyLock<Configuration> = LazyLock::new(|| {

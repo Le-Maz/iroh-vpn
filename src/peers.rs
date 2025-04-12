@@ -22,7 +22,7 @@ pub enum PeersMessage {
     Connect(NodeAddr),
     AddPeer(NodeId, Peer),
     TunPacket(Arc<[u8]>),
-    PeerPacket(Arc<[u8]>),
+    PeerPacket(Vec<u8>),
     Disconnect(NodeId),
 }
 
@@ -99,7 +99,7 @@ async fn run_message_loop(
                 for (node_id, peer) in peers.iter() {
                     if peer
                         .peer_send()
-                        .send(PeerMessage::Packet(data.clone()))
+                        .send(PeerMessage::TunPacket(data.clone()))
                         .await
                         .is_err()
                     {
@@ -112,7 +112,7 @@ async fn run_message_loop(
                 }
             }
             PeersMessage::PeerPacket(data) => {
-                let _ = tun_send.send(TunMessage::Packet(data)).await;
+                let _ = tun_send.send(TunMessage::PeerPacket(data)).await;
             }
             PeersMessage::Disconnect(node_id) => {
                 info!("Disconnected from {}", node_id.fmt_short());

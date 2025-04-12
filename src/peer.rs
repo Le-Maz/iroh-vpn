@@ -36,7 +36,7 @@ impl Drop for Peer {
 }
 
 pub enum PeerMessage {
-    Packet(Arc<[u8]>),
+    TunPacket(Arc<[u8]>),
 }
 
 pub async fn run_peer(
@@ -65,7 +65,7 @@ async fn receive_messages(
             bail!("PeerMessage channel broken");
         };
         match message {
-            PeerMessage::Packet(data) => {
+            PeerMessage::TunPacket(data) => {
                 send_stream.write_u32(data.len() as u32).await?;
                 send_stream.write_all(&data).await?;
             }
@@ -82,8 +82,6 @@ async fn send_messages(
         let size = buf_reader.read_u32().await?;
         let mut buf = vec![0u8; size as usize];
         buf_reader.read_exact(&mut buf).await?;
-        peers_send
-            .send(PeersMessage::PeerPacket(Arc::from(buf.as_slice())))
-            .await?;
+        peers_send.send(PeersMessage::PeerPacket(buf)).await?;
     }
 }
