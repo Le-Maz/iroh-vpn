@@ -66,7 +66,7 @@ async fn receive_messages(
         };
         match message {
             PeerMessage::TunPacket(data) => {
-                send_stream.write_u32(data.len() as u32).await?;
+                send_stream.write_u16(data.len() as u16).await?;
                 send_stream.write_all(&data).await?;
             }
         }
@@ -79,7 +79,7 @@ async fn send_messages(
 ) -> anyhow::Result<!> {
     let mut buf_reader = BufReader::new(recv_stream);
     loop {
-        let size = buf_reader.read_u32().await?;
+        let size = buf_reader.read_u16().await?;
         let mut buf = vec![0u8; size as usize];
         buf_reader.read_exact(&mut buf).await?;
         peers_send.send(PeersMessage::PeerPacket(buf)).await?;
